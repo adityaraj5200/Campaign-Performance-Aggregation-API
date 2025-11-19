@@ -1,0 +1,35 @@
+# Maven
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+.mvn/wrapper/MavenWrapperDownloader.java
+
+# IntelliJ IDEA
+*.iml
+.idea/
+out/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# VS Code
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# H2 database files (if ever persisted)
+*.mv.db
+*.trace.db
+
+# Build artifacts
+*.jar
+*.war
+*.zip
