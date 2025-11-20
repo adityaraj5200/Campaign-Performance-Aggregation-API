@@ -130,21 +130,16 @@ public class CampaignServiceImpl implements CampaignService {
             log.debug("Returning {} campaigns", results.size());
 
             long endTime = System.currentTimeMillis();
-            log.debug("Execution time = {} ms", (endTime - startTime));
+            log.debug("Campaign aggregation completed in {} ms", (endTime - startTime));
 
             return results;
 
         } catch (Exception ex) {
-
-            // 🟥 REQUIRED: error logging
             log.error("Error during campaign aggregation: {}", ex.getMessage(), ex);
             throw ex; // Let GlobalExceptionHandler handle
         }
     }
 
-    // ----------------------
-    // Snapshot Extraction
-    // ----------------------
 
     private Map<String, CostSnapshotDto> computeLatestActiveCostSnapshots(List<?> rows, String platform) {
 
