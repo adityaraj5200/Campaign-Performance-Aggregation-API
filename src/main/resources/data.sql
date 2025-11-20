@@ -15,9 +15,9 @@ INSERT INTO meta_cost VALUES ('M2','WINTER JACKET PROMO','PAUSED',0.00,5000,'202
 -- Organic Coffee Launch (5 rows)
 INSERT INTO meta_cost VALUES ('M3','Organic Coffee Launch','ACTIVE',200.00,15000,'2025-11-13 11:20:00','2025-11-13 19:20:00');
 INSERT INTO meta_cost VALUES ('M3','organic coffee launch','ACTIVE',220.50,16000,'2025-11-13 16:40:00','2025-11-14 00:40:00');
-INSERT INTO meta_cost VALUES ('M3','Organic coffee  launch','ACTIVE',240.00,17000,'2025-11-13 21:10:00','2025-11-14 05:10:00');
+INSERT INTO meta_cost VALUES ('M3','Organic coffee launch','ACTIVE',240.00,17000,'2025-11-13 21:10:00','2025-11-14 05:10:00');
 INSERT INTO meta_cost VALUES ('M3','ORGANIC COFFEE LAUNCH',NULL,0.00,12000,'2025-11-14 03:00:00','2025-11-14 11:00:00');
-INSERT INTO meta_cost VALUES ('M3','Organic-Coffee Launch','ACTIVE',260.00,17500,'2025-11-14 07:30:00','2025-11-14 15:30:00');
+INSERT INTO meta_cost VALUES ('M3','Organic Coffee Launch','ACTIVE',260.00,17500,'2025-11-14 07:30:00','2025-11-14 15:30:00');
 
 -- Fitness Tracker Ads (2 rows)
 INSERT INTO meta_cost VALUES ('M4','Fitness Tracker Ads','ACTIVE',310.00,20000,'2025-11-13 12:55:00','2025-11-13 20:55:00');
@@ -45,7 +45,7 @@ INSERT INTO snapchat_cost VALUES ('S2','winter jacket promo','ACTIVE',40.00,4500
 INSERT INTO snapchat_cost VALUES ('S3','Organic Coffee Launch','ACTIVE',60.00,5000,'2025-11-13 11:30:00','2025-11-13 19:30:00');
 INSERT INTO snapchat_cost VALUES ('S3','organic coffee launch','ACTIVE',65.00,5200,'2025-11-13 20:30:00','2025-11-14 04:30:00');
 INSERT INTO snapchat_cost VALUES ('S3','ORGANIC COFFEE LAUNCH',NULL,0.00,4500,'2025-11-14 05:10:00','2025-11-14 13:10:00');
-INSERT INTO snapchat_cost VALUES ('S3','Organic-Coffee Launch','ACTIVE',70.00,5400,'2025-11-14 07:45:00','2025-11-14 15:45:00');
+INSERT INTO snapchat_cost VALUES ('S3','Organic Coffee Launch','ACTIVE',70.00,5400,'2025-11-14 07:45:00','2025-11-14 15:45:00');
 
 -- Fitness Tracker Ads (3 rows)
 INSERT INTO snapchat_cost VALUES ('S4','Fitness Tracker Ads','ACTIVE',150.00,14000,'2025-11-13 12:20:00','2025-11-13 20:20:00');
@@ -72,7 +72,7 @@ INSERT INTO revenue_table VALUES ('winter jacket promo',190,170,22,1500,650,270.
 -- Organic Coffee Launch
 INSERT INTO revenue_table VALUES ('Organic Coffee Launch',700,650,50,4000,2000,900.00,'2025-11-13 20:10:00');
 INSERT INTO revenue_table VALUES ('organic coffee launch',720,660,52,4200,2050,930.00,'2025-11-14 02:20:00');
-INSERT INTO revenue_table VALUES ('Organic-Coffee Launch',750,680,55,4300,2100,950.00,'2025-11-14 06:40:00');
+INSERT INTO revenue_table VALUES ('Organic Coffee Launch',750,680,55,4300,2100,950.00,'2025-11-14 06:40:00');
 
 -- Fitness Tracker Ads
 INSERT INTO revenue_table VALUES ('Fitness Tracker Ads',1200,1150,75,6000,3000,1800.00,'2025-11-13 23:30:00');
