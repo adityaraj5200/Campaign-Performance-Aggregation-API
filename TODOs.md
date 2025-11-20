@@ -1,2 +1,0 @@
-* [x] Fix unit tests
-* [ ]  
