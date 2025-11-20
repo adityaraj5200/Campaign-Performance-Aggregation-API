@@ -1,5 +1,6 @@
 package com.growthfusion.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +16,13 @@ import java.util.Map;
  * Handles system-level and SQL exceptions globally,
  * converting them into proper JSON responses instead of raw stack traces.
  */
+@Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<Map<String, Object>> handleSqlErrors(DataAccessException ex) {
+        log.error("SQL error occurred: {}", ex.getMessage(), ex);
 
         Map<String, Object> body = new HashMap<>();
         body.put("status", 500);
@@ -32,6 +35,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralErrors(Exception ex) {
+        log.error("Unexpected system error: {}", ex.getMessage(), ex);
 
         Map<String, Object> body = new HashMap<>();
         body.put("status", 500);
@@ -43,12 +47,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DateTimeParseException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidDateFormat(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleInvalidDateFormat(DateTimeParseException ex) {
+
+        log.error("Invalid date format received: {}", ex.getParsedString());
+
         Map<String, Object> body = new HashMap<>();
         body.put("error", "Invalid date format");
         body.put("message", "Expected YYYY-MM-DD");
 
         return ResponseEntity.badRequest().body(body);
     }
-
 }
