@@ -3,6 +3,7 @@ package com.growthfusion.service.impl;
 import com.growthfusion.dto.CampaignPerformanceDto;
 import com.growthfusion.dto.CostSnapshotDto;
 import com.growthfusion.dto.DateWindowDto;
+import com.growthfusion.model.CostRow;
 import com.growthfusion.model.MetaCost;
 import com.growthfusion.model.SnapchatCost;
 import com.growthfusion.model.RevenueRecord;
@@ -53,9 +54,7 @@ public class CampaignServiceImpl implements CampaignService {
     @Override
     public List<CampaignPerformanceDto> getActiveCampaignPerformance(LocalDate localDate) {
 
-        long startTime = System.currentTimeMillis();
-
-
+        long start = System.currentTimeMillis();
         try {
             // Compute UTC window
             DateWindowDto window = dateWindowService.computeUtcWindow(localDate);
@@ -73,25 +72,18 @@ public class CampaignServiceImpl implements CampaignService {
             log.debug("Fetched Snapchat rows = {}", snapRows.size());
             log.debug("Fetched Revenue rows = {}", revenueRows.size());
 
-            // Normalize cost lists into snapshot maps
-            Map<String, CostSnapshotDto> metaLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(metaRows, "meta");
+            // Extract cost snapshots (unified logic)
+            List<CostSnapshotDto> allSnapshots = new ArrayList<>();
+            allSnapshots.addAll(extractLatestSnapshots(metaRows, "meta"));
+            allSnapshots.addAll(extractLatestSnapshots(snapRows, "snapchat"));
 
-            Map<String, CostSnapshotDto> snapchatLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(snapRows, "snapchat");
-
-            // Combine maps
-            Map<String, CostSnapshotDto> allLatestActiveCostSnapshots = new HashMap<>();
-            allLatestActiveCostSnapshots.putAll(metaLatestActiveCostSnapshots);
-            allLatestActiveCostSnapshots.putAll(snapchatLatestActiveCostSnapshots);
-
-            log.debug("Active campaign snapshots = {}", allLatestActiveCostSnapshots.size());
-
-            // Aggregate revenue by normalized campaign name
+            // Aggregate revenue
             Map<String, RevenueRecord> revenueAgg = aggregateRevenue(revenueRows);
 
-            // Merge cost + revenue + compute metrics
+            // Merge cost + revenue
             List<CampaignPerformanceDto> results = new ArrayList<>();
-            for (CostSnapshotDto cost : allLatestActiveCostSnapshots.values()) {
 
+            for (CostSnapshotDto cost : allSnapshots) {
                 String normalized = CampaignNameNormalizer.normalize(cost.getCampaignName());
                 RevenueRecord rev = revenueAgg.getOrDefault(normalized, emptyRevenue());
 
@@ -122,15 +114,16 @@ public class CampaignServiceImpl implements CampaignService {
                 results.add(dto);
             }
 
-            // Sort: profit desc, spend desc
-            results.sort(Comparator
-                    .comparing(CampaignPerformanceDto::getProfit).reversed()
-                    .thenComparing(CampaignPerformanceDto::getSpend).reversed());
+            // Sort by profit desc, spend desc
+            results.sort(
+                    Comparator.comparing(CampaignPerformanceDto::getProfit).reversed()
+                            .thenComparing(CampaignPerformanceDto::getSpend).reversed()
+            );
 
             log.debug("Returning {} campaigns", results.size());
 
-            long endTime = System.currentTimeMillis();
-            log.debug("Campaign aggregation completed in {} ms", (endTime - startTime));
+            long end = System.currentTimeMillis();
+            log.debug("Aggregation completed in {} ms", (end - start));
 
             return results;
 
@@ -140,102 +133,63 @@ public class CampaignServiceImpl implements CampaignService {
         }
     }
 
+    private List<CostSnapshotDto> extractLatestSnapshots(
+            List<? extends CostRow> rows,
+            String platform
+    ) {
+        Map<String, List<CostRow>> groups =
+                rows.stream()
+                        .collect(Collectors.groupingBy(
+                                r -> CampaignNameNormalizer.normalize(r.getCampaignName())
+                        ));
 
-    private Map<String, CostSnapshotDto> computeLatestActiveCostSnapshots(List<?> rows, String platform) {
+        List<CostSnapshotDto> result = new ArrayList<>();
 
-        Map<String, CostSnapshotDto> map = new HashMap<>();
+        for (List<CostRow> group : groups.values()) {
 
-        Map<String, List<Object>> groups = rows.stream()
-                .collect(Collectors.groupingBy(r -> {
-                    String name = (r instanceof MetaCost) ?
-                            ((MetaCost) r).getCampaignName() :
-                            ((SnapchatCost) r).getCampaignName();
-                    return CampaignNameNormalizer.normalize(name);
-                }));
-
-        for (var entry : groups.entrySet()) {
-            String norm = entry.getKey();
-            List<Object> list = entry.getValue();
-
-            // Filter ACTIVE logic: status=ACTIVE OR (status NULL AND spend>0)
-            List<Object> activeCandidates = list.stream()
-                    .filter(r -> {
-                        String status;
-                        Double spend;
-
-                        if (r instanceof MetaCost m) {
-                            status = m.getStatus();
-                            spend = m.getSpend();
-                        } else {
-                            SnapchatCost s = (SnapchatCost) r;
-                            status = s.getStatus();
-                            spend = s.getSpend();
-                        }
-
-                        return ("ACTIVE".equalsIgnoreCase(status)) ||
-                                (status == null && spend != null && spend > 0);
-                    })
+            // ACTIVE candidates
+            List<CostRow> active = group.stream()
+                    .filter(r ->
+                            "ACTIVE".equalsIgnoreCase(r.getStatus())
+                                    || (r.getStatus() == null && r.getSpend() > 0)
+                    )
                     .toList();
 
-            if (activeCandidates.isEmpty()) continue;
+            if (active.isEmpty()) continue;
 
             // Pick latest by event_time_la
-            Object latest = activeCandidates.stream()
-                    .max(Comparator.comparing(o ->
-                            (o instanceof MetaCost m)
-                                    ? m.getEventTimeLa()
-                                    : ((SnapchatCost) o).getEventTimeLa()))
+            CostRow latest = active.stream()
+                    .max(Comparator.comparing(CostRow::getEventTimeLa))
                     .get();
 
-            String campaignName;
-            String status;
-            Double spend;
-            Long impressions;
-            LocalDateTime eventTimeLa;
-
-            if (latest instanceof MetaCost m) {
-                campaignName = m.getCampaignName();
-                status = m.getStatus();
-                spend = m.getSpend();
-                impressions = m.getImpressions();
-                eventTimeLa = m.getEventTimeLa();
-            } else {
-                SnapchatCost s = (SnapchatCost) latest;
-                campaignName = s.getCampaignName();
-                status = s.getStatus();
-                spend = s.getSpend();
-                impressions = s.getImpressions();
-                eventTimeLa = s.getEventTimeLa();
-            }
-
-            // Convert LA → UTC
-            LocalDateTime eventTimeUtc = eventTimeLa
+            // LA -> UTC
+            LocalDateTime utc = latest.getEventTimeLa()
                     .atZone(java.time.ZoneId.of("America/Los_Angeles"))
                     .withZoneSameInstant(java.time.ZoneId.of("UTC"))
                     .toLocalDateTime();
 
-            map.put(norm, new CostSnapshotDto(
+            // Create snapshot
+            result.add(new CostSnapshotDto(
                     platform,
-                    campaignName,
-                    status,
-                    spend,
-                    impressions,
-                    eventTimeUtc
+                    latest.getCampaignName(),
+                    latest.getStatus(),
+                    latest.getSpend(),
+                    latest.getImpressions(),
+                    utc
             ));
         }
 
-        return map;
+        return result;
     }
-
 
     private Map<String, RevenueRecord> aggregateRevenue(List<RevenueRecord> rows) {
 
         Map<String, RevenueRecord> agg = new HashMap<>();
 
         for (RevenueRecord r : rows) {
-            String norm = CampaignNameNormalizer.normalize(r.getCampaignName());
+            String normalized = CampaignNameNormalizer.normalize(r.getCampaignName());
 
-            agg.compute(norm, (k, existing) -> {
+            agg.compute(normalized, (k, existing) -> {
                 if (existing == null) return cloneRevenue(r);
 
                 existing.setRevenue(existing.getRevenue() + r.getRevenue());
@@ -244,6 +198,7 @@ public class CampaignServiceImpl implements CampaignService {
                 existing.setConversions(existing.getConversions() + r.getConversions());
                 existing.setLpViews(existing.getLpViews() + r.getLpViews());
                 existing.setLpClicks(existing.getLpClicks() + r.getLpClicks());
+
                 return existing;
             });
         }
