@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,4 +41,14 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
+
+    @ExceptionHandler(DateTimeParseException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidDateFormat(Exception ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "Invalid date format");
+        body.put("message", "Expected YYYY-MM-DD");
+
+        return ResponseEntity.badRequest().body(body);
+    }
+
 }
