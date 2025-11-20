@@ -1,123 +1,162 @@
+# Campaign Performance Aggregation API
 
-# 📊 Campaign Performance Aggregation API  
-Java 21 • Spring Boot 3.x • JDBC • H2
+Java 21 • Spring Boot 3.2.5 • JDBC • H2
 
-This project implements the **Growth Fusion Backend Developer Assignment**, producing a unified daily view of campaign performance by merging **Meta cost**, **Snapchat cost**, and **revenue** data with correct **LA → UTC** time handling.
+This project implements the **Growth Fusion Backend Developer Assignment**, producing a unified daily performance view by merging:
 
----
+* **Meta cost**
+* **Snapchat cost**
+* **Revenue table**
 
-# 🚀 Features Implemented
-- GET `/api/v1/campaigns/active?date=YYYY-MM-DD`
-- LA day → UTC window conversion (00:00–23:59:59 LA → 08:00–07:59:59 UTC)
-- Active campaign detection  
-  - `status = ACTIVE`  
-  - OR `status IS NULL AND spend > 0`  
-- Latest cost snapshot per campaign  
-- Revenue aggregation from UTC window  
-- Normalized joins (trim + lowercase)  
-- All metrics computed:
-  - profit, roas, roi
-  - lpctr, epc, lpcpc
-- Sorted by:
-  - profit DESC
-  - spend DESC
-- JdbcTemplate-based repositories
-- Fully modular code structure
-- H2 in-memory DB with schema + data
-- Postman collection included
-- Java 21–compatible
+with correct **LA → UTC conversion**, **active-campaign filtering**, and **latest snapshot extraction**.
 
 ---
 
-# 📂 Project Structure
+# Tech Stack
+
+* **Java 21**
+* **Spring Boot 3.2.5**
+* **JdbcTemplate (no ORM)**
+* **H2 in-memory database**
+* **JUnit 5**
+* **Lombok**
+
+---
+
+# Requirements
+
+Before running:
+
+* **Java 21**
+* **Maven 3.9+**
+* No additional DB setup required — H2 initializes automatically from `schema.sql` and `data.sql`.
+
+---
+
+# Features Implemented
+
+### Core Business Logic
+
+* GET `/api/v1/campaigns/active?date=YYYY-MM-DD`
+* LA day → UTC window conversion
+* Active campaign detection
+* Latest cost snapshot per campaign
+* Revenue aggregation
+* Campaign-name normalization
+* Full metric calculation
+* Sorting by profit DESC → spend DESC
+
+### Technical Features
+
+* JdbcTemplate-based repositories
+* Global exception handling
+* Debug logging:
+  * LA → UTC conversion
+  * Query window
+  * Rows fetched per table
+  * Active snapshots count
+  * Execution time
+
+* Seed data auto-loaded from `data.sql`
+
+---
+
+# Project Structure
+
 ```
-
 src/main/java/com/growthfusion/
-controller/
-service/
-service/impl/
-repository/
-dto/
-model/
-util/
+│── controller/
+│── service/
+│   └── impl/
+│── repository/
+│── dto/
+│── model/
+│── util/
+│── config/
+│
 src/main/resources/
-application.properties
-schema.sql
-data.sql
-postman/
-CampaignAPI.postman_collection.json
+│── application.properties
+│── schema.sql
+│── data.sql
+│
 src/test/java/com/growthfusion/
-
 ```
 
 ---
 
-# 🛠️ Setup Instructions
+# Setup & Run
 
-### 1. Clone the repository  
-```
+## Clone the project
 
+```bash
 git clone <your-repo-url>
-cd campaign-performance-api
-
+cd "Campaign Performance Aggregation API"
 ```
 
-### 2. Run with Maven  
-```
+## Run with Maven
 
+```bash
 mvn spring-boot:run
-
 ```
 
-### 3. Or build & run  
-```
+## Or build & run
 
+```bash
 mvn clean package
 java -jar target/campaign-performance-api-1.0.0.jar
-
 ```
 
 ---
 
-# 🧪 Testing the API
+# Example API Usage
 
-### Example Request  
+### Please use this Postman Collection: https://aditya-team-7143.postman.co/workspace/blog-application~bf749697-64e8-4f24-94d0-4010f24c3367/collection/15813603-688c58c4-2af6-4740-80bf-6c45b531bab6?action=share&creator=15813603
+
+### Get Active Campaigns
+
+```
+GET http://localhost:8080/api/v1/campaigns/active?date=2025-11-13
 ```
 
-GET [http://localhost:8080/api/v1/campaigns/active?date=2025-11-13](http://localhost:8080/api/v1/campaigns/active?date=2025-11-13)
+### Example SUCCESS Response
 
+```json
+[
+  {
+    "platform": "meta",
+    "campaignName": "Organic Coffee Launch",
+    "status": "ACTIVE",
+    "lastCostEventTimeUtc": "2025-11-14T05:10:00",
+    "spend": 240.0,
+    "impressions": 17000,
+    "revenue": 1830.0,
+    "profit": 1590.0,
+    "roas": 7.625,
+    "roi": 6.625
+  }
+]
 ```
 
-### Example Error  
+### Invalid Date Format
+
+```
+GET /api/v1/campaigns/active?date=13-11-2025
 ```
 
-GET [http://localhost:8080/api/v1/campaigns/active?date=13-11-2025](http://localhost:8080/api/v1/campaigns/active?date=13-11-2025)
+**Response:**
 
-````
-
-Response:
 ```json
 {
   "error": "Invalid date format",
   "message": "Expected YYYY-MM-DD"
 }
-````
-
----
-
-# 🧰 Postman Collection
-
-Import:
-
-```
-postman/CampaignAPI.postman_collection.json
 ```
 
 ---
 
-# 🗄️ H2 Database
+#️ H2 Database Console
 
-Console available at:
+URL:
 
 ```
 http://localhost:8080/h2-console
@@ -126,60 +165,53 @@ http://localhost:8080/h2-console
 Use:
 
 ```
-JDBC URL: jdbc:h2:mem:campaign_db
-User: sa
-Password: <blank>
+JDBC URL: jdbc:h2:mem:growthfusiondb
+Username: adityarajgrowthfusion
+Password: password
 ```
+
+Automatically initialized with `schema.sql` + `data.sql`.
 
 ---
 
-# 🧠 Design Decisions
+# Design Decisions
 
-### **1. JdbcTemplate over ORM**
+## **Campaign-name normalization**
 
-The assignment emphasizes SQL + data modeling → JdbcTemplate provides full control and transparency.
+Real marketing data has spelling variations.
+This project normalizes by:
 
-### **2. Normalized joining**
+* lowercasing
+* trimming leading and trailing whitespaces
+* collapsing spaces
 
-Campaign names vary wildly in real marketing data → normalization guarantees reliable joins.
-
-### **3. LA → UTC conversion**
-
-Implemented using:
+Example:
 
 ```
-ZoneId.of("America/Los_Angeles")
-ZoneId.of("UTC")
+"Organic Coffee Launch"
+"organic coffee launch"
+ → "organic coffee launch"
 ```
 
-Ensures accuracy across DST.
+## **LA → UTC Day Window**
 
-### **4. Modular architecture**
+A date is interpreted in **Los Angeles timezone**:
 
-* Services handle business logic
-* Repositories handle data access
-* Utilities isolate transformation logic
-* DTOs define stable, API-safe formats
+```
+2025-11-13 00:00:00 LA
+→ 2025-11-13 08:00:00 UTC
 
-### **5. Robust metric safety**
+2025-11-13 23:59:59 LA
+→ 2025-11-14 07:59:59 UTC
+```
 
-All metrics gracefully handle nulls and divide-by-zero scenarios.
+## **Latest cost snapshot per campaign**
 
----
+Filtering logic:
 
-# 🧪 Tests Included
+```
+status = ACTIVE
+OR (status IS NULL AND spend > 0)
+```
 
-### **1. TimezoneConversionTest**
-
-Validates LA→UTC window conversion for multiple dates.
-
-### **2. AggregationJoinTest**
-
-Loads H2 schema + data and asserts:
-
-* correct snapshot extraction
-* correct active filtering
-* correct revenue aggregation
-* correct metric values
-
----
+Then pick the **latest event_time_la** in the UTC window.
