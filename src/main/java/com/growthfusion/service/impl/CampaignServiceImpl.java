@@ -13,6 +13,7 @@ import com.growthfusion.service.CampaignService;
 import com.growthfusion.service.DateWindowService;
 import com.growthfusion.util.CampaignNameNormalizer;
 import com.growthfusion.util.MetricsUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
  * 6) Computing metrics
  * 7) Sorting final output
  */
+@Slf4j
 @Service
 public class CampaignServiceImpl implements CampaignService {
 
@@ -50,68 +52,94 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Override
     public List<CampaignPerformanceDto> getActiveCampaignPerformance(LocalDate localDate) {
-        // 1. Compute UTC window
-        DateWindowDto window = dateWindowService.computeUtcWindow(localDate);
-        LocalDateTime utcStart = window.getUtcStart();
-        LocalDateTime utcEnd = window.getUtcEnd();
 
-        // 2. Fetch all rows within UTC window
-        List<MetaCost> metaRows = metaCostRepository.findByUtcWindow(utcStart, utcEnd);
-        List<SnapchatCost> snapRows = snapchatCostRepository.findByUtcWindow(utcStart, utcEnd);
-        List<RevenueRecord> revenueRows = revenueRepository.findByUtcWindow(utcStart, utcEnd);
+        long startTime = System.currentTimeMillis();
 
-        // Normalize cost lists into snapshot maps
-        Map<String, CostSnapshotDto> metaLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(metaRows, "meta");
-        Map<String, CostSnapshotDto> snapchatLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(snapRows, "snapchat");
 
-        // Combine maps
-        Map<String, CostSnapshotDto> allLatestActiveCostSnapshots = new HashMap<>();
-        allLatestActiveCostSnapshots.putAll(metaLatestActiveCostSnapshots);
-        allLatestActiveCostSnapshots.putAll(snapchatLatestActiveCostSnapshots);
+        try {
+            // 1. Compute UTC window
+            DateWindowDto window = dateWindowService.computeUtcWindow(localDate);
+            LocalDateTime utcStart = window.getUtcStart();
+            LocalDateTime utcEnd = window.getUtcEnd();
 
-        // Aggregate revenue by normalized campaign name
-        Map<String, RevenueRecord> revenueAgg = aggregateRevenue(revenueRows);
+            log.debug("Query UTC Window: start={}, end={}", utcStart, utcEnd);
 
-        // Merge cost + revenue + compute metrics
-        List<CampaignPerformanceDto> results = new ArrayList<>();
-        for (CostSnapshotDto cost : allLatestActiveCostSnapshots.values()) {
+            // 2. Fetch all rows within UTC window
+            List<MetaCost> metaRows = metaCostRepository.findByUtcWindow(utcStart, utcEnd);
+            List<SnapchatCost> snapRows = snapchatCostRepository.findByUtcWindow(utcStart, utcEnd);
+            List<RevenueRecord> revenueRows = revenueRepository.findByUtcWindow(utcStart, utcEnd);
 
-            String normalized = CampaignNameNormalizer.normalize(cost.getCampaignName());
-            RevenueRecord rev = revenueAgg.getOrDefault(normalized, emptyRevenue());
+            log.debug("Fetched Meta rows = {}", metaRows.size());
+            log.debug("Fetched Snapchat rows = {}", snapRows.size());
+            log.debug("Fetched Revenue rows = {}", revenueRows.size());
 
-            CampaignPerformanceDto dto = new CampaignPerformanceDto();
-            dto.setPlatform(cost.getPlatform());
-            dto.setCampaignName(cost.getCampaignName());
-            dto.setStatus(cost.getStatus());
-            dto.setLastCostEventTimeUtc(cost.getLastEventTimeUtc());
+            // Normalize cost lists into snapshot maps
+            Map<String, CostSnapshotDto> metaLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(metaRows, "meta");
 
-            dto.setSpend(cost.getSpend());
-            dto.setImpressions(cost.getImpressions());
+            Map<String, CostSnapshotDto> snapchatLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(snapRows, "snapchat");
 
-            dto.setRevenue(rev.getRevenue());
-            dto.setClicks(rev.getClicks());
-            dto.setUniqueClicks(rev.getUniqueClicks());
-            dto.setConversions(rev.getConversions());
-            dto.setLpViews(rev.getLpViews());
-            dto.setLpClicks(rev.getLpClicks());
+            // Combine maps
+            Map<String, CostSnapshotDto> allLatestActiveCostSnapshots = new HashMap<>();
+            allLatestActiveCostSnapshots.putAll(metaLatestActiveCostSnapshots);
+            allLatestActiveCostSnapshots.putAll(snapchatLatestActiveCostSnapshots);
 
-            // Metrics
-            dto.setProfit(MetricsUtil.profit(dto.getRevenue(), dto.getSpend()));
-            dto.setRoas(MetricsUtil.roas(dto.getRevenue(), dto.getSpend()));
-            dto.setRoi(MetricsUtil.roi(dto.getRevenue(), dto.getSpend()));
-            dto.setLpctr(MetricsUtil.lpctr(dto.getLpClicks(), dto.getLpViews()));
-            dto.setEpc(MetricsUtil.epc(dto.getRevenue(), dto.getLpClicks()));
-            dto.setLpcpc(MetricsUtil.lpcpc(dto.getSpend(), dto.getLpClicks()));
+            log.debug("Active campaign snapshots = {}", allLatestActiveCostSnapshots.size());
 
-            results.add(dto);
+            // Aggregate revenue by normalized campaign name
+            Map<String, RevenueRecord> revenueAgg = aggregateRevenue(revenueRows);
+
+            // Merge cost + revenue + compute metrics
+            List<CampaignPerformanceDto> results = new ArrayList<>();
+            for (CostSnapshotDto cost : allLatestActiveCostSnapshots.values()) {
+
+                String normalized = CampaignNameNormalizer.normalize(cost.getCampaignName());
+                RevenueRecord rev = revenueAgg.getOrDefault(normalized, emptyRevenue());
+
+                CampaignPerformanceDto dto = new CampaignPerformanceDto();
+                dto.setPlatform(cost.getPlatform());
+                dto.setCampaignName(cost.getCampaignName());
+                dto.setStatus(cost.getStatus());
+                dto.setLastCostEventTimeUtc(cost.getLastEventTimeUtc());
+
+                dto.setSpend(cost.getSpend());
+                dto.setImpressions(cost.getImpressions());
+
+                dto.setRevenue(rev.getRevenue());
+                dto.setClicks(rev.getClicks());
+                dto.setUniqueClicks(rev.getUniqueClicks());
+                dto.setConversions(rev.getConversions());
+                dto.setLpViews(rev.getLpViews());
+                dto.setLpClicks(rev.getLpClicks());
+
+                // Metrics
+                dto.setProfit(MetricsUtil.profit(dto.getRevenue(), dto.getSpend()));
+                dto.setRoas(MetricsUtil.roas(dto.getRevenue(), dto.getSpend()));
+                dto.setRoi(MetricsUtil.roi(dto.getRevenue(), dto.getSpend()));
+                dto.setLpctr(MetricsUtil.lpctr(dto.getLpClicks(), dto.getLpViews()));
+                dto.setEpc(MetricsUtil.epc(dto.getRevenue(), dto.getLpClicks()));
+                dto.setLpcpc(MetricsUtil.lpcpc(dto.getSpend(), dto.getLpClicks()));
+
+                results.add(dto);
+            }
+
+            // Sort: profit desc, spend desc
+            results.sort(Comparator
+                    .comparing(CampaignPerformanceDto::getProfit).reversed()
+                    .thenComparing(CampaignPerformanceDto::getSpend).reversed());
+
+            log.debug("Returning {} campaigns", results.size());
+
+            long endTime = System.currentTimeMillis();
+            log.debug("Execution time = {} ms", (endTime - startTime));
+
+            return results;
+
+        } catch (Exception ex) {
+
+            // 🟥 REQUIRED: error logging
+            log.error("Error during campaign aggregation: {}", ex.getMessage(), ex);
+            throw ex; // Let GlobalExceptionHandler handle
         }
-
-        // Sort: profit desc, spend desc
-        results.sort(Comparator
-                .comparing(CampaignPerformanceDto::getProfit).reversed()
-                .thenComparing(CampaignPerformanceDto::getSpend).reversed());
-
-        return results;
     }
 
     // ----------------------
