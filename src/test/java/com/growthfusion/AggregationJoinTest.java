@@ -15,9 +15,10 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.List;
-
+import java.util.Locale;
 
 /**
  * Integration-style test that:
@@ -27,6 +28,8 @@ import java.util.List;
  */
 public class AggregationJoinTest {
     private CampaignService campaignService;
+    private JdbcTemplate jdbc;
+    private DateWindowService dateWindowService;
 
     @BeforeEach
     public void setup() {
@@ -38,13 +41,13 @@ public class AggregationJoinTest {
                 .driverClassName("org.h2.Driver")
                 .build();
 
-        JdbcTemplate jdbc = new JdbcTemplate(ds);
+        this.jdbc = new JdbcTemplate(ds);
 
         // Execute schema + data
         jdbc.execute(getResource("schema.sql"));
         jdbc.execute(getResource("data.sql"));
 
-        DateWindowService dateWindowService = new DateWindowServiceImpl();
+        this.dateWindowService = new DateWindowServiceImpl();
         MetaCostRepository metaRepo = new MetaCostRepository(jdbc);
         SnapchatCostRepository snapRepo = new SnapchatCostRepository(jdbc);
         RevenueRepository revenueRepo = new RevenueRepository(jdbc);
@@ -58,32 +61,94 @@ public class AggregationJoinTest {
     }
 
     @Test
-    public void testAggregationForNov13() {
+    public void testAggregationForNov13_basicAssertions() {
 
         List<CampaignPerformanceDto> results =
                 campaignService.getActiveCampaignPerformance(LocalDate.parse("2025-11-13"));
 
-        // There are MANY campaigns; just ensure non-zero result set
-        Assertions.assertFalse(results.isEmpty(), "Expected non-empty campaign list");
+        // There should be exactly 5 normalized campaigns (as per updated data.sql)
+        Assertions.assertEquals(5, results.size(), "Expected 5 unique campaigns after normalization");
 
-        // Verify a known strong performer exists
-        CampaignPerformanceDto laptop =
+        // Verify a known campaign exists (Fitness Tracker Ads)
+        CampaignPerformanceDto fitness =
                 results.stream()
-                        .filter(r -> r.getCampaignName().equalsIgnoreCase("Laptop Discount"))
+                        .filter(r -> r.getCampaignName().equalsIgnoreCase("Fitness Tracker Ads"))
                         .findFirst()
                         .orElse(null);
 
-        Assertions.assertNotNull(laptop, "Laptop Discount should exist");
+        Assertions.assertNotNull(fitness, "Fitness Tracker Ads should exist in results");
 
-        // Check metric correctness for a known example
-        double expectedProfit = laptop.getRevenue() - laptop.getSpend();
-        Assertions.assertEquals(expectedProfit, laptop.getProfit(), 0.0001);
+        // Profit correctness: profit == revenue - spend
+        double expectedProfit = fitness.getRevenue() - fitness.getSpend();
+        Assertions.assertEquals(expectedProfit, fitness.getProfit(), 0.0001);
 
-        // ROAS should be revenue / spend
-        if (laptop.getSpend() > 0) {
-            double expectedRoas = laptop.getRevenue() / laptop.getSpend();
-            Assertions.assertEquals(expectedRoas, laptop.getRoas(), 0.0001);
+        // ROAS correctness (if spend > 0)
+        if (fitness.getSpend() > 0) {
+            double expectedRoas = fitness.getRevenue() / fitness.getSpend();
+            Assertions.assertEquals(expectedRoas, fitness.getRoas(), 0.0001);
         }
+    }
+
+    @Test
+    public void testRevenueAggregation_matchesDatabaseSum() {
+
+        LocalDate date = LocalDate.parse("2025-11-13");
+        var window = dateWindowService.computeUtcWindow(date);
+        Timestamp utcStart = Timestamp.valueOf(window.getUtcStart());
+        Timestamp utcEnd = Timestamp.valueOf(window.getUtcEnd());
+
+        // Pick "Smart Home Bundle" and ensure service's revenue equals DB sum (case-insensitive)
+        String campaignName = "Smart Home Bundle";
+
+        Double dbSum = jdbc.queryForObject(
+                "SELECT SUM(revenue) FROM revenue_table WHERE ingested_at BETWEEN ? AND ? AND LOWER(campaign_name) = LOWER(?)",
+                new Object[]{utcStart, utcEnd, campaignName},
+                Double.class
+        );
+        if (dbSum == null) dbSum = 0.0;
+
+        List<CampaignPerformanceDto> results =
+                campaignService.getActiveCampaignPerformance(date);
+
+        CampaignPerformanceDto dto =
+                results.stream()
+                        .filter(r -> r.getCampaignName().equalsIgnoreCase(campaignName))
+                        .findFirst()
+                        .orElse(null);
+
+        Assertions.assertNotNull(dto, "Smart Home Bundle result must be present");
+
+        // Service's revenue should match DB aggregated revenue
+        Assertions.assertEquals(dbSum, dto.getRevenue(), 0.0001);
+    }
+
+    @Test
+    public void testNormalization_and_combinedRevenueForOrganicCoffee() {
+
+        LocalDate date = LocalDate.parse("2025-11-13");
+        var window = dateWindowService.computeUtcWindow(date);
+        Timestamp utcStart = Timestamp.valueOf(window.getUtcStart());
+        Timestamp utcEnd = Timestamp.valueOf(window.getUtcEnd());
+
+        // Sum revenue rows for all variants of "Organic Coffee Launch" within the UTC window
+        Double dbSum = jdbc.queryForObject(
+                "SELECT SUM(revenue) FROM revenue_table WHERE ingested_at BETWEEN ? AND ? AND LOWER(campaign_name) LIKE ?",
+                new Object[]{utcStart, utcEnd, "%organic%coffee%"},
+                Double.class
+        );
+        if (dbSum == null) dbSum = 0.0;
+
+        List<CampaignPerformanceDto> results =
+                campaignService.getActiveCampaignPerformance(date);
+
+        CampaignPerformanceDto dto =
+                results.stream()
+                        .filter(r -> r.getCampaignName().toLowerCase(Locale.ROOT).contains("organic"))
+                        .findFirst()
+                        .orElse(null);
+
+        Assertions.assertNotNull(dto, "Organic Coffee Launch should be present after normalization");
+        Assertions.assertEquals(dbSum, dto.getRevenue(), 0.0001);
     }
 
     // -----------------------------
