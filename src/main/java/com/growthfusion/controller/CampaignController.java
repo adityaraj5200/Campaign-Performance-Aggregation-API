@@ -5,12 +5,13 @@ import com.growthfusion.service.CampaignService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
  * REST controller exposing:
  * GET /api/v1/campaigns/active?date=YYYY-MM-DD
- * Delegates all business logic to CampaignService.
+ * All business logic handled by CampaignService.
  */
 @RestController
 @RequestMapping("/api/v1/campaigns")
@@ -23,17 +24,11 @@ public class CampaignController {
     }
 
     @GetMapping("/active")
-    public ResponseEntity<?> getActiveCampaigns(@RequestParam(required = true) String date) {
-        try {
-            List<CampaignPerformanceDto> result = campaignService.getActiveCampaignPerformance(date);
-            return ResponseEntity.ok(result);
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(
-                    new ErrorResponse("Invalid date format", "Expected YYYY-MM-DD")
-            );
-        }
-    }
+    public ResponseEntity<?> getActiveCampaigns(@RequestParam String date) {
+        LocalDate localDate = LocalDate.parse(date);  // will throw DateTimeParseException if invalid
+        List<CampaignPerformanceDto> result =
+                campaignService.getActiveCampaignPerformance(localDate);
 
-    // Simple error response wrapper
-    record ErrorResponse(String error, String message) {}
+        return ResponseEntity.ok(result);
+    }
 }

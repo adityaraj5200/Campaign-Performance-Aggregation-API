@@ -49,12 +49,9 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
-    public List<CampaignPerformanceDto> getActiveCampaignPerformance(String dateString) {
-
-        LocalDate date = LocalDate.parse(dateString);
-
+    public List<CampaignPerformanceDto> getActiveCampaignPerformance(LocalDate localDate) {
         // 1. Compute UTC window
-        DateWindowDto window = dateWindowService.computeUtcWindow(date);
+        DateWindowDto window = dateWindowService.computeUtcWindow(localDate);
         LocalDateTime utcStart = window.getUtcStart();
         LocalDateTime utcEnd = window.getUtcEnd();
 
@@ -64,20 +61,20 @@ public class CampaignServiceImpl implements CampaignService {
         List<RevenueRecord> revenueRows = revenueRepository.findByUtcWindow(utcStart, utcEnd);
 
         // Normalize cost lists into snapshot maps
-        Map<String, CostSnapshotDto> metaSnapshots = extractSnapshots(metaRows, "meta");
-        Map<String, CostSnapshotDto> snapSnapshots = extractSnapshots(snapRows, "snapchat");
+        Map<String, CostSnapshotDto> metaLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(metaRows, "meta");
+        Map<String, CostSnapshotDto> snapchatLatestActiveCostSnapshots = computeLatestActiveCostSnapshots(snapRows, "snapchat");
 
         // Combine maps
-        Map<String, CostSnapshotDto> allCost = new HashMap<>();
-        allCost.putAll(metaSnapshots);
-        allCost.putAll(snapSnapshots);
+        Map<String, CostSnapshotDto> allLatestActiveCostSnapshots = new HashMap<>();
+        allLatestActiveCostSnapshots.putAll(metaLatestActiveCostSnapshots);
+        allLatestActiveCostSnapshots.putAll(snapchatLatestActiveCostSnapshots);
 
         // Aggregate revenue by normalized campaign name
         Map<String, RevenueRecord> revenueAgg = aggregateRevenue(revenueRows);
 
         // Merge cost + revenue + compute metrics
         List<CampaignPerformanceDto> results = new ArrayList<>();
-        for (CostSnapshotDto cost : allCost.values()) {
+        for (CostSnapshotDto cost : allLatestActiveCostSnapshots.values()) {
 
             String normalized = CampaignNameNormalizer.normalize(cost.getCampaignName());
             RevenueRecord rev = revenueAgg.getOrDefault(normalized, emptyRevenue());
@@ -121,7 +118,7 @@ public class CampaignServiceImpl implements CampaignService {
     // Snapshot Extraction
     // ----------------------
 
-    private Map<String, CostSnapshotDto> extractSnapshots(List<?> rows, String platform) {
+    private Map<String, CostSnapshotDto> computeLatestActiveCostSnapshots(List<?> rows, String platform) {
 
         Map<String, CostSnapshotDto> map = new HashMap<>();
 
@@ -207,9 +204,6 @@ public class CampaignServiceImpl implements CampaignService {
         return map;
     }
 
-    // ----------------------
-    // Revenue Aggregation
-    // ----------------------
 
     private Map<String, RevenueRecord> aggregateRevenue(List<RevenueRecord> rows) {
 

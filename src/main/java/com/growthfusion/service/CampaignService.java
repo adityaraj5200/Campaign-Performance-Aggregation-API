@@ -2,6 +2,7 @@ package com.growthfusion.service;
 
 import com.growthfusion.dto.CampaignPerformanceDto;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -12,5 +13,5 @@ import java.util.List;
  */
 public interface CampaignService {
 
-    List<CampaignPerformanceDto> getActiveCampaignPerformance(String dateString);
+    List<CampaignPerformanceDto> getActiveCampaignPerformance(LocalDate localDate);
 }
