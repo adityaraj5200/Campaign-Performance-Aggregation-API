@@ -2,7 +2,6 @@ package com.growthfusion.service.impl;
 
 import com.growthfusion.dto.DateWindowDto;
 import com.growthfusion.service.DateWindowService;
-import com.growthfusion.util.DateWindowUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +11,7 @@ import java.time.ZonedDateTime;
 
 /**
  * Implementation of DateWindowService.
- * Delegates LA→UTC conversion logic to DateWindowUtil.
+ * Handles LA → UTC window conversion with debugging logs.
  */
 @Slf4j
 @Service
@@ -27,6 +26,7 @@ public class DateWindowServiceImpl implements DateWindowService {
         ZonedDateTime utcEnd   = laEnd.withZoneSameInstant(ZoneId.of("UTC"));
 
         log.debug("LA → UTC conversion: LA({} → {}), LA({} → {})", laStart, utcStart, laEnd, utcEnd);
+        log.debug("Query window (UTC): {} to {}", utcStart, utcEnd);
 
         return new DateWindowDto(
                 utcStart.toLocalDateTime(),
