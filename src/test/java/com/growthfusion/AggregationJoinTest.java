@@ -25,18 +25,15 @@ import java.util.List;
  * - validates snapshot extraction, revenue aggregation & metric correctness
  */
 public class AggregationJoinTest {
-
-
-    // TODO: Fix it later
     private CampaignService campaignService;
 
     @BeforeEach
     public void setup() {
 
         DataSource ds = DataSourceBuilder.create()
-                .url("jdbc:h2:mem:campaign_db_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE")
-                .username("sa")
-                .password("")
+                .url("jdbc:h2:mem:growthfusiondb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE")
+                .username("adityarajgrowthfusion")
+                .password("password")
                 .driverClassName("org.h2.Driver")
                 .build();
 
