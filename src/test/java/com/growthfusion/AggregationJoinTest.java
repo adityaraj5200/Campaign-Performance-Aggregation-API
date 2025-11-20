@@ -66,7 +66,7 @@ public class AggregationJoinTest {
         List<CampaignPerformanceDto> results =
                 campaignService.getActiveCampaignPerformance(LocalDate.parse("2025-11-13"));
 
-        // There should be exactly 5 normalized campaigns (as per updated data.sql)
+        // There should be exactly 5 normalized campaigns as per data.sql
         Assertions.assertEquals(5, results.size(), "Expected 5 unique campaigns after normalization");
 
         // Verify a known campaign exists (Fitness Tracker Ads)
@@ -151,9 +151,7 @@ public class AggregationJoinTest {
         Assertions.assertEquals(dbSum, dto.getRevenue(), 0.0001);
     }
 
-    // -----------------------------
     // Helper to load SQL from resources
-    // -----------------------------
     private String getResource(String filename) {
         try {
             return new String(

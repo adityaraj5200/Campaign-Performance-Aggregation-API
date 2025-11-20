@@ -57,14 +57,14 @@ public class CampaignServiceImpl implements CampaignService {
 
 
         try {
-            // 1. Compute UTC window
+            // Compute UTC window
             DateWindowDto window = dateWindowService.computeUtcWindow(localDate);
             LocalDateTime utcStart = window.getUtcStart();
             LocalDateTime utcEnd = window.getUtcEnd();
 
             log.debug("Query UTC Window: start={}, end={}", utcStart, utcEnd);
 
-            // 2. Fetch all rows within UTC window
+            // Fetch all rows within UTC window
             List<MetaCost> metaRows = metaCostRepository.findByUtcWindow(utcStart, utcEnd);
             List<SnapchatCost> snapRows = snapchatCostRepository.findByUtcWindow(utcStart, utcEnd);
             List<RevenueRecord> revenueRows = revenueRepository.findByUtcWindow(utcStart, utcEnd);
