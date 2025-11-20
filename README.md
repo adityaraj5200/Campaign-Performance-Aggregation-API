@@ -89,7 +89,7 @@ src/test/java/com/growthfusion/
 ## Clone the project
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/adityaraj5200/Campaign-Performance-Aggregation-API
 cd "Campaign Performance Aggregation API"
 ```
 
