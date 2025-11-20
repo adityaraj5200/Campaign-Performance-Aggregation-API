@@ -90,7 +90,7 @@ src/test/java/com/growthfusion/
 
 ```bash
 git clone https://github.com/adityaraj5200/Campaign-Performance-Aggregation-API
-cd "Campaign Performance Aggregation API"
+cd "Campaign-Performance-Aggregation-API"
 ```
 
 ## Run with Maven
