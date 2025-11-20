@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * Used for extracting latest spend/impressions snapshot within the LA day.
  */
 @Data
-public class MetaCost {
+public class MetaCost implements CostRow {
     private String campaignId;
     private String campaignName;
     private String status;

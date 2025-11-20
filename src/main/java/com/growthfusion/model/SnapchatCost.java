@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * Used for latest-snapshot extraction and active-campaign evaluation.
  */
 @Data
-public class SnapchatCost {
+public class SnapchatCost implements CostRow {
     private String campaignId;
     private String campaignName;
     private String status;
