@@ -15,6 +15,7 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -60,7 +61,7 @@ public class AggregationJoinTest {
     public void testAggregationForNov13() {
 
         List<CampaignPerformanceDto> results =
-                campaignService.getActiveCampaignPerformance("2025-11-13");
+                campaignService.getActiveCampaignPerformance(LocalDate.parse("2025-11-13"));
 
         // There are MANY campaigns; just ensure non-zero result set
         Assertions.assertFalse(results.isEmpty(), "Expected non-empty campaign list");
