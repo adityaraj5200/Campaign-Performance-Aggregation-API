@@ -28,7 +28,7 @@ public class SnapchatCostRepository {
             SELECT campaign_id, campaign_name, status, spend, impressions,
                    event_time_la, ingested_at
             FROM snapchat_cost
-            WHERE ingested_at BETWEEN ? AND ?
+            WHERE event_time_la BETWEEN ? AND ?
             """;
 
         return jdbcTemplate.query(sql, new Object[]{utcStart, utcEnd}, new SnapchatCostRowMapper());
